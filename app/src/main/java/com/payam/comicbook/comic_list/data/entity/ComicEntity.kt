@@ -33,11 +33,5 @@ fun ComicEntity.toModel() = ComicModel(
     title = safeTitle ?: "",
     description = alt ?: "",
     imageLink = imageLink ?: "",
-    date = run {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.YEAR, this.year ?: 1900)
-        calendar.set(Calendar.MONTH, this.month ?: 1)
-        calendar.set(Calendar.DAY_OF_MONTH, this.day ?: 1)
-        calendar
-    }
+    date = "$year - $month - $day"
 )

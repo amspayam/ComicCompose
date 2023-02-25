@@ -1,13 +1,11 @@
 package com.payam.comicbook.comic_list.presentation
 
-import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.payam.comicbook.comic_list.domain.use_case.get_comic_by_number.GetComicByNumberUseCase
 import com.payam.comicbook.comic_list.domain.use_case.get_last_comics.GetLastComicsUseCase
-import com.payam.comicbook.common.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -30,54 +28,41 @@ class ComicsViewModel @Inject constructor(
         getLastComic()
     }
 
-    fun refresh() {
-        getComicByNumber(currentComic)
-    }
-
-    @VisibleForTesting
-    private fun getLastComic() {
+    fun getLastComic() {
+        _comicState.value = ComicsState(
+            isLoading = true
+        )
         getLastComicsUseCase().onEach { result ->
-            when (result) {
-                is Resource.Success -> {
-                    result.data?.let {
-                        lastComicNumber = it.number
-                        currentComic = it.number
-                    }
-                    _comicState.value = ComicsState(comic = result.data)
+            result
+                .onSuccess {
+                    lastComicNumber = it.number
+                    currentComic = it.number
+                    _comicState.value = ComicsState(comic = it)
                 }
-                is Resource.Error -> {
+                .onFailure {
                     _comicState.value = ComicsState(
-                        error = result.message ?: "An unexpected error occurred."
+                        error = it.localizedMessage ?: "An unexpected error occurred."
                     )
                 }
-                is Resource.Loading -> {
-                    _comicState.value = ComicsState(
-                        isLoading = true
-                    )
-                }
-            }
         }.launchIn(viewModelScope)
     }
 
     fun getComicByNumber(number: Int) {
+        _comicState.value = ComicsState(
+            isLoading = true
+        )
         if (number in (firstComicNumber)..lastComicNumber) {
             currentComic = number
             getComicByNumberUseCase(number = number).onEach { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        _comicState.value = ComicsState(comic = result.data)
+                result
+                    .onSuccess {
+                        _comicState.value = ComicsState(comic = it)
                     }
-                    is Resource.Error -> {
+                    .onFailure {
                         _comicState.value = ComicsState(
-                            error = result.message ?: "An unexpected error occurred."
+                            error = it.localizedMessage ?: "An unexpected error occurred."
                         )
                     }
-                    is Resource.Loading -> {
-                        _comicState.value = ComicsState(
-                            isLoading = true
-                        )
-                    }
-                }
             }.launchIn(viewModelScope)
         }
     }

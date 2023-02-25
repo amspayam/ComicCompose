@@ -1,7 +1,6 @@
 package com.payam.comicbook.comic_list.presentation
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,13 +11,13 @@ import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,58 +25,69 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Size
 import com.payam.comicbook.R
+import com.payam.comicbook.comic_list.domain.model.ComicModel
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun ComicScreen(
     viewModel: ComicsViewModel = hiltViewModel()
 ) {
-    val viewModelState = viewModel.comicsState.value
+    val state = viewModel.comicsState.value
 
-    val refreshing = viewModelState.isLoading
-    val swipeRefreshState =
-        rememberPullRefreshState(refreshing, viewModel::refresh)
+    TopContent(
+        state = state,
+        onRefresh = { viewModel.getComicByNumber(viewModel.currentComic) },
+        onFirst = { viewModel.getComicByNumber(viewModel.firstComicNumber) },
+        onPrevious = { viewModel.getComicByNumber(viewModel.currentComic - 1) },
+        onNext = {
+            viewModel.getComicByNumber(viewModel.currentComic + 1)
+        }
+
+    ) {
+        viewModel.getComicByNumber(viewModel.lastComicNumber)
+    }
+
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun TopContent(
+    state: ComicsState,
+    onRefresh: () -> Unit,
+    onFirst: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onLast: () -> Unit,
+) {
+    val swipeRefreshState = rememberPullRefreshState(state.isLoading, onRefresh)
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pullRefresh(swipeRefreshState)
+        modifier = Modifier.fillMaxSize().pullRefresh(swipeRefreshState)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize()
         ) {
             item {
-                viewModelState.comic?.let {
+                state.comic?.let {
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
                         shape = MaterialTheme.shapes.medium,
                         elevation = 10.dp
-                    )
-                    {
+                    ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp)
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
                         ) {
                             Image(
                                 painter = rememberAsyncImagePainter(
                                     model = ImageRequest.Builder(LocalContext.current)
-                                        .data(it.imageLink)
-                                        .size(Size.ORIGINAL)
-                                        .build()
+                                        .data(it.imageLink).size(Size.ORIGINAL).build()
                                 ),
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .fillParentMaxHeight(0.3f)
+                                modifier = Modifier.fillMaxWidth().fillParentMaxHeight(0.3f)
                             )
 
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -94,12 +104,11 @@ fun ComicScreen(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = it.description,
-                                style = MaterialTheme.typography.body2
+                                text = it.description, style = MaterialTheme.typography.body2
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = it.date.time.toString(),
+                                text = it.date,
                                 color = Color.Gray,
                                 fontSize = 10.sp,
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -108,9 +117,9 @@ fun ComicScreen(
                     }
                 }
 
-                if (viewModelState.error.isNotBlank()) {
+                if (state.error.isNotBlank()) {
                     Text(
-                        text = viewModelState.error,
+                        text = state.error,
                         color = MaterialTheme.colors.error,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
@@ -122,94 +131,89 @@ fun ComicScreen(
         }
 
         Controller(
-            viewModel = viewModel,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
-                .align(Alignment.BottomCenter)
+                .align(Alignment.BottomCenter),
+            onFirst = onFirst,
+            onPrevious = onPrevious,
+            onNext = onNext,
+            onLast = onLast
         )
 
         PullRefreshIndicator(
-            refreshing = refreshing,
+            refreshing = state.isLoading,
             state = swipeRefreshState,
             contentColor = MaterialTheme.colors.secondary,
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
     }
-
 }
 
 @Composable
 fun Controller(
-    viewModel: ComicsViewModel,
-    modifier: Modifier
+    modifier: Modifier,
+    onFirst: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onLast: () -> Unit
 ) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-
-//        Button(
-//            modifier = Modifier
-//                .shadow(0.dp),
-//            elevation = ButtonDefaults.elevation(
-//                defaultElevation = 0.dp,
-//                pressedElevation = 0.dp,
-//                hoveredElevation = 0.dp,
-//                focusedElevation = 0.dp
-//            ),
-//            colors = ButtonDefaults.buttonColors(
-//                backgroundColor = Color.Transparent
-//            ),
-//            onClick = {
-//                viewModel.getComicByNumber(viewModel.firstComicNumber)
-//            }
-//        )
-//        {
-//        }
-        Icon(
-            painter = painterResource(R.drawable.ic_first_32dp),
+        Icon(painter = painterResource(R.drawable.ic_first_32dp),
             contentDescription = "First Comic",
             tint = MaterialTheme.colors.secondary,
-            modifier = Modifier
-                .padding(8.dp)
-                .clickable { viewModel.getComicByNumber(viewModel.firstComicNumber) }
-        )
-        Icon(
-            painter = painterResource(R.drawable.ic_previous_32dp),
+            modifier = Modifier.padding(8.dp).clickable {
+                onFirst()
+            })
+        Icon(painter = painterResource(R.drawable.ic_previous_32dp),
             contentDescription = "Previous Comic",
             tint = MaterialTheme.colors.secondary,
-            modifier = Modifier
-                .padding(8.dp)
-                .clickable {
-                    viewModel.getComicByNumber(viewModel.currentComic - 1)
-                }
-        )
+            modifier = Modifier.padding(8.dp).clickable {
+                onPrevious()
+            })
 
-        Icon(
-            painter = painterResource(R.drawable.ic_next_32dp),
+        Icon(painter = painterResource(R.drawable.ic_next_32dp),
             contentDescription = "Next Comic",
             tint = MaterialTheme.colors.secondary,
-            modifier = Modifier
-                .padding(8.dp)
-                .clickable {
-                    viewModel.getComicByNumber(viewModel.currentComic + 1)
-                }
-        )
+            modifier = Modifier.padding(8.dp).clickable {
+                onNext()
+            })
 
-        Icon(
-            painter = painterResource(R.drawable.ic_last_32dp),
+        Icon(painter = painterResource(R.drawable.ic_last_32dp),
             contentDescription = "Last Comic",
             tint = MaterialTheme.colors.secondary,
-            modifier = Modifier
-                .padding(8.dp)
-                .clickable {
-                    viewModel.getComicByNumber(viewModel.lastComicNumber)
-                }
-        )
+            modifier = Modifier.padding(8.dp).clickable {
+                onLast()
+            })
 
     }
 
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DefaultPreview() {
+    TopContent(
+        state = ComicsState(
+            isLoading = false,
+            comic = ComicModel(
+                number = 2739,
+                title = "Data Quality",
+                description = "Desc",
+                imageLink = "https://imgs.xkcd.com/comics/data_quality.png",
+                date = "2023 - 2 - 17"
+            ),
+            error = ""
+        ),
+        onRefresh = {},
+        onFirst = {},
+        onPrevious = {},
+        onNext = {}
+
+    ) {}
 }

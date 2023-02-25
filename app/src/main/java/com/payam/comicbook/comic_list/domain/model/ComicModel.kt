@@ -1,7 +1,5 @@
 package com.payam.comicbook.comic_list.domain.model
 
-import java.util.*
-
 data class ComicModel(
 
     val number: Int,
@@ -14,5 +12,5 @@ data class ComicModel(
     val imageLink: String, // Address for save image in mobile device
 
     // Date
-    val date: Calendar
+    val date: String
 )
